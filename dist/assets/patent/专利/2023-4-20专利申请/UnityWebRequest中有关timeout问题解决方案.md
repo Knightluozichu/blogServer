@@ -1,0 +1,1 @@
+此解决方案解决了由Unity内部UnityWebRequest代码bug，即断网重连后，Unity下载会卡住而且不会触发timeout

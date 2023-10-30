@@ -9,46 +9,51 @@ const collection = 'blogDocuments';
 use(database);
 
 // Create a new collection.
-db.createCollection(collection);
+// db.createCollection(collection);
 
-db.getCollection(collection).insertMany([
-  {
-    title: 'My First Blog Post',
-      content: 'This is my first blog post.',
-      tags: ['mongodb', 'blog', 'javascript'],
-      creator: {
-          name: 'John Doe',
-          email: 'rainknightpox@gmail.com',
-      },
-      comments: [
-          {
-              name: 'Jane Doe',
-              email: 'rainknightpox@gmail.com',
-              text: 'Nice post!',
-          },
-      ],
-      createdAt: new Date(),
-  },
-  {
-    title: 'My Second Blog Post',
-      content: 'This is my second blog post.',
-      tags: ['mongodb', 'blog', 'javascript'],
-      creator: {
-          name: 'John Doe',
-          email: 'rainknightpox@gmail.com',
-      },
-      comments: [
-          {
-              name: 'Jane Doe',
-              email: 'rainknightpox@gmail.com',
-              text: 'Nice post!',
-          },
-      ],
-      createdAt: new Date(),
-  },
+// db.getCollection(collection).insertMany([
+//   {
+//     title: 'My First Blog Post',
+//       content: 'This is my first blog post.',
+//       tags: ['mongodb', 'blog', 'javascript'],
+//       creator: {
+//           name: 'John Doe',
+//           email: 'rainknightpox@gmail.com',
+//       },
+//       comments: [
+//           {
+//               name: 'Jane Doe',
+//               email: 'rainknightpox@gmail.com',
+//               text: 'Nice post!',
+//           },
+//       ],
+//       createdAt: new Date(),
+//   },
+//   {
+//     title: 'My Second Blog Post',
+//       content: 'This is my second blog post.',
+//       tags: ['mongodb', 'blog', 'javascript'],
+//       creator: {
+//           name: 'John Doe',
+//           email: 'rainknightpox@gmail.com',
+//       },
+//       comments: [
+//           {
+//               name: 'Jane Doe',
+//               email: 'rainknightpox@gmail.com',
+//               text: 'Nice post!',
+//           },
+//       ],
+//       createdAt: new Date(),
+//   },
 
-]);
+// ]);
 
+const col = db.getCollection(collection);
+
+col.find({}).forEach((doc) => {
+  print(doc.title);
+});
 
 // The prototype form to create a collection:
 /* db.createCollection( <name>,

@@ -1,0 +1,1 @@
+Unity运行时GLB，GLTF模型文件里的动画数据转化为Unity AnimationClip的技术
