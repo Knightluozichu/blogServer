@@ -1,0 +1,12 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "watch",
+            "type": "shell",
+            "command": "npx ts-node-dev watch.ts",
+            "isBackground": true,
+            "problemMatcher": []
+        }
+    ]
+}
