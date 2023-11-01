@@ -7,6 +7,34 @@
             "command": "npx ts-node-dev watch.ts",
             "isBackground": true,
             "problemMatcher": []
+        },
+        {
+            "label": "db test",
+            "type": "shell",
+            "command": "npx ts-node-dev db.ts",
+            "isBackground": true,
+            "problemMatcher": []
+        },
+        {
+            "label": "db generate",
+            "type": "shell",
+            "command": "npx prisma generate",
+            "isBackground": true,
+            "problemMatcher": []
+        },
+        {
+            "label": "db schema update",
+            "type": "shell",
+            "command": "npx prisma db push --preview-feature",
+            "isBackground": true,
+            "problemMatcher": []
+        },
+        {
+            "label":"db studio",
+            "type": "shell",
+            "command": "npx prisma studio",
+            "isBackground": true,
+            "problemMatcher": []
         }
     ]
 }
