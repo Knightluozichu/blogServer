@@ -39,3 +39,14 @@ type Address {
   state  String
   zip    String
 }
+
+model Doc{
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  name String
+  likes Int
+  views Int
+  date DateTime
+  author String
+  tags String[]
+  title String
+}

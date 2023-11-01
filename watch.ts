@@ -1,7 +1,7 @@
 import chokidar from 'chokidar';
 import { exec } from 'child_process';
 
-const watcher = chokidar.watch('dist/assets/blog/*.doc', {
+const watcher = chokidar.watch('dist/assets/blog/*.md', {
     persistent: true
 });
 
@@ -10,6 +10,8 @@ watcher
     .on('change', (path) => changeFile(path))
     .on('unlink', (path) => deleteFile(path) )
     .on('error', (error) => errorFile(error) );
+
+
 
 
 function addFile(path: string) {
