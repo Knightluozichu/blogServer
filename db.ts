@@ -29,21 +29,21 @@ async function main() {
     //   })
     //   dir(allUsers, { depth: null })
 
-    await prisma.post.update({
-      where: {
-        slug: 'my-first-post',
-      },
-      data: {
-        comments: {
-          createMany: {
-            data: [
-              { comment: 'Great post!' },
-              { comment: "Can't wait to read more!" },
-            ],
-          },
-        },
-      },
-    })
+    // await prisma.post.update({
+    //   where: {
+    //     slug: 'my-first-post',
+    //   },
+    //   data: {
+    //     comments: {
+    //       createMany: {
+    //         data: [
+    //           { comment: 'Great post!' },
+    //           { comment: "Can't wait to read more!" },
+    //         ],
+    //       },
+    //     },
+    //   },
+    // })
     const posts = await prisma.post.findMany({
       include: {
         comments: true,

@@ -1,4 +1,5 @@
 import chokidar from 'chokidar';
+import { exec } from 'child_process';
 
 const watcher = chokidar.watch('dist/assets/blog/*.doc', {
     persistent: true
@@ -13,6 +14,15 @@ watcher
 
 function addFile(path: string) {
     console.log(`File ${path} has been added`);
+
+    exec('npx prisma generate', (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error running npx prisma generate task: ${error}`);
+            return;
+        }
+
+        console.log(`db studio task output: ${stdout}`);
+    });
 }
 
 function changeFile(path: string): void {

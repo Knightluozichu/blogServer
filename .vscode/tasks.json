@@ -25,7 +25,7 @@
         {
             "label": "db schema update",
             "type": "shell",
-            "command": "npx prisma db push --preview-feature",
+            "command": "npx prisma db push",
             "isBackground": true,
             "problemMatcher": []
         },
