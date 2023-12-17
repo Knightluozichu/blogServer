@@ -8,14 +8,17 @@ generator client {
 }
 
 model User {
-  id       String   @id @default(auto()) @map("_id") @db.ObjectId
-  email    String   @unique
-  name     String
-  password String   @default("")
+  id              String         @id @default(auto()) @map("_id") @db.ObjectId
+  email           String         @unique
+  name            String
+  password        String         @default("")
+  isOnline        Boolean        @default(false)
+  chatTitleInfo   ChatTitleInfo? @relation(fields: [chatTitleInfoId], references: [id])
+  chatTitleInfoId String?        @db.ObjectId
 }
 
 model ChatDetail {
-  order           Int     @id @map("_id")
+  order           Int           @id @map("_id")
   type            Int
   content         String
   time            String
@@ -24,15 +27,16 @@ model ChatDetail {
   name            String
   counter         Int
   ChatTitleInfo   ChatTitleInfo @relation(fields: [chatTitleInfoId], references: [id])
-  chatTitleInfoId Int
+  chatTitleInfoId String        @db.ObjectId
 }
 
 model ChatTitleInfo {
-  id              Int     @id @map("_id")
-  name            String
-  contents        ChatDetail[]
-  icon            String
-  isReadMsg       Boolean
-  isMute          Boolean
-  chatConnectId   Int
+  id            String       @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  contents      ChatDetail[]
+  icon          String?
+  isReadMsg     Boolean?
+  isMute        Boolean?
+  chatConnectId Int?
+  User          User[]
 }

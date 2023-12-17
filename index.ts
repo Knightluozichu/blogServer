@@ -2,6 +2,19 @@ import fastify, { FastifyListenOptions, FastifyRequest } from "fastify";
 import path from "path";
 import { fastifyStatic, FastifyStaticOptions } from "@fastify/static";
 import fastifyCors from '@fastify/cors';
+import multipart from '@fastify/multipart'
+import { v4 as uuidv4 } from 'uuid';
+import crypto from 'crypto';
+
+function hashCode(s: string): number {
+    let hash = 0;
+    for (let i = 0; i < s.length; i++) {
+        const char = s.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash |= 0; // Convert to 32bit integer
+    }
+    return hash;
+}
 
 const envToLogger = {
     dev: {
@@ -36,19 +49,20 @@ const staticOpts: FastifyStaticOptions = {
 server.register(fastifyStatic, staticOpts);
 server.register(fastifyCors, {
     origin: "http://192.168.8.9:8080", // 你的前端应用的源
-    methods: ["GET", "POST", "PUT", "DELETE"], // 允许的 HTTP 方法
-  });
-  
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"], // 允许的 HTTP 方法
+});
+server.register(multipart);
 
 server.get("/", async (request, reply) => {
     // request.log.info("Some info about the request");
     return reply.sendFile("index.html");
 });
 
-import { PrismaClient } from "@prisma/client";
+import { ChatDetail, PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+//登陆 查询用户
 server.get("/user", async (request: FastifyRequest<{ Querystring: { email: string, password: string } }>, reply) => {
     const { email, password } = request.query;
 
@@ -72,6 +86,9 @@ server.get("/user", async (request: FastifyRequest<{ Querystring: { email: strin
             reply.status(401).send({ error: "Incorrect password" });
             return;
         }
+        const id = user.id;
+        await prisma.user.update({ where: { id }, data: { isOnline: true } });
+
 
         reply.send(user);
     } catch (error) {
@@ -79,6 +96,179 @@ server.get("/user", async (request: FastifyRequest<{ Querystring: { email: strin
         reply.status(500).send({ error: "An error occurred while retrieving the user" });
     }
 });
+
+interface RegisterRequestBody {
+    name: string;
+    password: string;
+    email: string;
+    // 其他字段...
+}
+//注册 查询email是否存在，如果存在则返回错误，如果不存在则创建用户
+server.post("/register", async (request: FastifyRequest<{ Body: RegisterRequestBody }>, reply) => {
+    const { email, password, name } = request.body;
+    if (!email) {
+        reply.status(400).send({ error: "Email is required" });
+        return;
+    }
+    if (!password) {
+        reply.status(400).send({ error: "Password is required" });
+        return;
+    }
+    if (!name) {
+        reply.status(400).send({ error: "Name is required" });
+        return;
+    }
+    try {
+        const user = await prisma.user.findUnique({ where: { email } });
+        if (user) {
+            reply.status(404).send({ error: "User already exists" });
+            return;
+        }
+        const newUser = await prisma.user.create({ data: { email, password, name } });
+        reply.send(newUser);
+    } catch (error) {
+        console.error(error);
+        reply.status(500).send({ error: "An error occurred while retrieving the user" });
+    }
+});
+
+//根据用户名或者email 查询用户，允许近似和模糊查询
+server.get("/search", async (request: FastifyRequest<{ Querystring: { name: string, email: string } }>, reply) => {
+    const { name, email } = request.query;
+    if (!name && !email) {
+        reply.status(400).send({ error: "Name or email is required" });
+        return;
+    }
+    try {
+        const users = await prisma.user.findMany({
+            where: {
+                OR: [
+                    {
+                        name: name,
+                    },
+                    {
+                        email: email,
+                    },
+                ],
+            },
+        });
+        reply.send(users);
+    } catch (error) {
+        console.error(error);
+        reply.status(500).send({ error: "An error occurred while retrieving the user" });
+    }
+});
+
+// /chatInfo 获取聊天信息列表 get
+server.get("/chatInfo", async (request: FastifyRequest<{ Querystring: { name: string } }>, reply) => {
+    const { name } = request.query;
+    if (!name) {
+        reply.status(400).send({ error: "name is required" });
+        return;
+    }
+    try {
+        const chatInfos = await prisma.chatTitleInfo.findMany({
+            where: {
+                name: name,
+                chatConnectId: hashCode(uuidv4()),
+            },
+        });
+        console.log(JSON.stringify(chatInfos));
+        reply.send(chatInfos);
+    } catch (error) {
+        console.error(error);
+        reply.status(500).send({ error: "An error occurred while retrieving the chatInfo" });
+    }
+});
+
+// /chatInfo 创建聊天信息 post
+server.post("/chatInfo", async (request: FastifyRequest<{ Body: { name: string, email: string } }>, reply) => {
+    const { name,email } = request.body;
+    console.log('-----------');
+    console.log(name);
+    console.log(email);
+    console.log('-----------');
+    if (!name) {
+        reply.status(400).send({ error: "name is required" });
+        return;
+    }
+
+    try {
+        const chatInfo = await prisma.chatTitleInfo.create({
+            data: {
+                name: name,
+                chatConnectId: hashCode(uuidv4()),
+            },
+        });
+        //根据email查找用户数据对象,主要是更新用户的chatTitleInfoId
+        await prisma.user.update({
+            where: {
+                email: email,
+            },
+            data: {
+                chatTitleInfoId: chatInfo.id,
+            },
+        });
+
+        reply.send(chatInfo);
+    } catch (error) {
+        console.error(error);
+        reply.status(500).send({ error: "An error occurred while retrieving the chatInfo" });
+    }
+});
+
+// 新增聊天信息 post
+server.post("/chatDetail", async (request: FastifyRequest<{ Body: ChatDetail }>, reply) => {
+    const { order, type,content, time,icon,isOwner,name,counter,chatTitleInfoId } = request.body;
+    if (!order) {
+        reply.status(400).send({ error: "order is required" });
+        return;
+    }
+
+    try {
+        const chatDetail = await prisma.chatDetail.create({
+            data: {
+                order: order,
+                type: type,
+                content: content,
+                time: time,
+                icon: icon,
+                isOwner: isOwner,
+                name: name,
+                counter: counter,
+                chatTitleInfoId: chatTitleInfoId,
+            },
+        });
+        reply.send(chatDetail);
+    } catch (error) {
+        console.error(error);
+        reply.status(500).send({ error: "An error occurred while retrieving the chatDetail" });
+    }
+});
+
+// /chatDetail 删除聊天信息 delete
+server.delete("/chatDetail", async (request: FastifyRequest<{ Querystring: { order: string } }>, reply) => {
+    const { order } = request.query;
+    if (!order) {
+        reply.status(400).send({ error: "order is required" });
+        return;
+    }
+
+    try {
+        await prisma.chatDetail.delete({
+            where: {
+                order: parseInt(order),
+            },
+        });
+        reply.send('删除成功.');
+    } catch (error) {
+        console.error(error);
+        reply.status(500).send({ error: "An error occurred while retrieving the chatDetail" });
+    }
+});
+
+
+
 
 const flo: FastifyListenOptions = {
     port: 3000,
