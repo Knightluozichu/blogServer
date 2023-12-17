@@ -7,46 +7,32 @@ generator client {
   provider = "prisma-client-js"
 }
 
-model Post {
-  id       String    @id @default(auto()) @map("_id") @db.ObjectId
-  slug     String    @unique
-  title    String
-  body     String
-  author   User      @relation(fields: [authorId], references: [id])
-  authorId String    @db.ObjectId
-  comments Comment[]
-}
-
 model User {
-  id      String   @id @default(auto()) @map("_id") @db.ObjectId
-  email   String   @unique
-  name    String?
-  address Address?
-  posts   Post[]
+  id       String   @id @default(auto()) @map("_id") @db.ObjectId
+  email    String   @unique
+  name     String
+  password String   @default("")
 }
 
-model Comment {
-  id      String @id @default(auto()) @map("_id") @db.ObjectId
-  comment String
-  post    Post   @relation(fields: [postId], references: [id])
-  postId  String @db.ObjectId
+model ChatDetail {
+  order           Int     @id @map("_id")
+  type            Int
+  content         String
+  time            String
+  icon            String
+  isOwner         Boolean
+  name            String
+  counter         Int
+  ChatTitleInfo   ChatTitleInfo @relation(fields: [chatTitleInfoId], references: [id])
+  chatTitleInfoId Int
 }
 
-// Address is an embedded document
-type Address {
-  street String
-  city   String
-  state  String
-  zip    String
-}
-
-model Doc{
-  id String @id @default(auto()) @map("_id") @db.ObjectId
-  name String
-  likes Int
-  views Int
-  date DateTime
-  author String
-  tags String[]
-  title String
+model ChatTitleInfo {
+  id              Int     @id @map("_id")
+  name            String
+  contents        ChatDetail[]
+  icon            String
+  isReadMsg       Boolean
+  isMute          Boolean
+  chatConnectId   Int
 }

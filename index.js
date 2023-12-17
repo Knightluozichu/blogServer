@@ -16,7 +16,7 @@ const fastify_1 = __importDefault(require("fastify"));
 const path_1 = __importDefault(require("path"));
 const static_1 = require("@fastify/static");
 const envToLogger = {
-    development: {
+    dev: {
         transport: {
             target: 'pino-pretty',
             options: {
@@ -25,18 +25,24 @@ const envToLogger = {
             },
         },
     },
-    production: true,
+    prod: true,
     test: false,
 };
-console.log(envToLogger, process.env.NODE_ENV);
+console.log(process.env.NODE_ENV);
+if (!process.env.NODE_ENV) {
+    console.error("NODE_ENV not set");
+    process.exit(1);
+}
+// console.log(envToLogger, process.env); envToLogger["dev"] ??
 const server = (0, fastify_1.default)({
-    logger: true
+    logger: true,
 });
 const staticOpts = {
     root: path_1.default.join(__dirname, "dist"),
 };
 server.register(static_1.fastifyStatic, staticOpts);
 server.get("/", (request, reply) => __awaiter(void 0, void 0, void 0, function* () {
+    // request.log.info("Some info about the request");
     return reply.sendFile("index.html");
 }));
 const flo = {
@@ -49,5 +55,5 @@ server.listen(flo, (err, address) => {
         console.error(err);
         process.exit(1);
     }
-    console.log(`Server listening at ${address}`);
+    server.log.info(`Server listening at ${address}`);
 });
