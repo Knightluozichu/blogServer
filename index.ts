@@ -89,7 +89,7 @@ server.get("/user", async (request: FastifyRequest<{ Querystring: { email: strin
         const id = user.id;
         await prisma.user.update({ where: { id }, data: { isOnline: true } });
 
-
+        server.log.info(`User ${user.name} logged in`);
         reply.send(user);
     } catch (error) {
         console.error(error);
@@ -181,6 +181,9 @@ server.get("/chatInfo", async (request: FastifyRequest<{ Querystring: { name: st
     }
 });
 
+// /chatInfo patch,使chatInfo.value?.id 关联上 chatDetail.chatTitleInfoId
+
+
 // /chatInfo 创建聊天信息 post
 server.post("/chatInfo", async (request: FastifyRequest<{ Body: { name: string, email: string } }>, reply) => {
     const { name,email } = request.body;
@@ -218,12 +221,9 @@ server.post("/chatInfo", async (request: FastifyRequest<{ Body: { name: string, 
 });
 
 // 新增聊天信息 post
-server.post("/chatDetail", async (request: FastifyRequest<{ Body: ChatDetail }>, reply) => {
+server.post("/chatDetail", async (request: FastifyRequest<{ Body: { order: number, type: number,content:string, 
+    time: string,icon: string,isOwner :boolean,name: string,counter: number,chatTitleInfoId: string } }>, reply) => {
     const { order, type,content, time,icon,isOwner,name,counter,chatTitleInfoId } = request.body;
-    if (!order) {
-        reply.status(400).send({ error: "order is required" });
-        return;
-    }
 
     try {
         const chatDetail = await prisma.chatDetail.create({
@@ -247,20 +247,16 @@ server.post("/chatDetail", async (request: FastifyRequest<{ Body: ChatDetail }>,
 });
 
 // /chatDetail 删除聊天信息 delete
-server.delete("/chatDetail", async (request: FastifyRequest<{ Querystring: { order: string } }>, reply) => {
-    const { order } = request.query;
-    if (!order) {
-        reply.status(400).send({ error: "order is required" });
-        return;
-    }
+server.delete("/chatDetail", async (request: FastifyRequest<{ Querystring: { id: string } }>, reply) => {
+    const { id } = request.query;
 
     try {
         await prisma.chatDetail.delete({
             where: {
-                order: parseInt(order),
+                id: id,
             },
         });
-        reply.send('删除成功.');
+        reply.status(200).send({msg:'删除成功.'});
     } catch (error) {
         console.error(error);
         reply.status(500).send({ error: "An error occurred while retrieving the chatDetail" });

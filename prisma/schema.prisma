@@ -18,7 +18,8 @@ model User {
 }
 
 model ChatDetail {
-  order           Int           @id @map("_id")
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  order           Int
   type            Int
   content         String
   time            String

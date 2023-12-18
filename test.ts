@@ -1,5 +1,9 @@
 // 启动mongodb 及 replica set 数据副集
 
+//查看状态，副本集启动需要先关闭服务
+// sc query MongoDB
+// net stop MongoDB
+
 // 管理员权限
 // mongod --port 27017 --dbpath "F:/Learn/DB/MongoDB/Server/6.0/data" --replSet myReplicaSet
 
