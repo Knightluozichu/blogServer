@@ -39,5 +39,5 @@ model ChatTitleInfo {
   isReadMsg     Boolean?
   isMute        Boolean?
   chatConnectId Int?
-  User          User[]
+  users          User[]
 }

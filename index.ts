@@ -186,7 +186,7 @@ server.get("/chatInfo", async (request: FastifyRequest<{ Querystring: { name: st
 
 // /chatInfo 创建聊天信息 post
 server.post("/chatInfo", async (request: FastifyRequest<{ Body: { name: string, email: string } }>, reply) => {
-    const { name,email } = request.body;
+    const { name, email } = request.body;
     console.log('-----------');
     console.log(name);
     console.log(email);
@@ -197,21 +197,34 @@ server.post("/chatInfo", async (request: FastifyRequest<{ Body: { name: string, 
     }
 
     try {
+
+
         const chatInfo = await prisma.chatTitleInfo.create({
             data: {
                 name: name,
                 chatConnectId: hashCode(uuidv4()),
             },
         });
-        //根据email查找用户数据对象,主要是更新用户的chatTitleInfoId
+
+        // 根据email查找用户数据对象,然后把chatInfo.id关联到user.chatTitleInfoId
         await prisma.user.update({
-            where: {
-                email: email,
-            },
+            where: { email: email },
             data: {
-                chatTitleInfoId: chatInfo.id,
+                chatTitleInfo: {
+                    connect: { id: chatInfo.id }
+                }
             },
         });
+
+
+        // 根据name查找用户数据对象
+        await prisma.user.updateMany({
+            where: { name: name },
+            data :{
+                chatTitleInfoId: chatInfo.id
+            },
+        });
+
 
         reply.send(chatInfo);
     } catch (error) {
@@ -221,9 +234,13 @@ server.post("/chatInfo", async (request: FastifyRequest<{ Body: { name: string, 
 });
 
 // 新增聊天信息 post
-server.post("/chatDetail", async (request: FastifyRequest<{ Body: { order: number, type: number,content:string, 
-    time: string,icon: string,isOwner :boolean,name: string,counter: number,chatTitleInfoId: string } }>, reply) => {
-    const { order, type,content, time,icon,isOwner,name,counter,chatTitleInfoId } = request.body;
+server.post("/chatDetail", async (request: FastifyRequest<{
+    Body: {
+        order: number, type: number, content: string,
+        time: string, icon: string, isOwner: boolean, name: string, counter: number, chatTitleInfoId: string
+    }
+}>, reply) => {
+    const { order, type, content, time, icon, isOwner, name, counter, chatTitleInfoId } = request.body;
 
     try {
         const chatDetail = await prisma.chatDetail.create({
@@ -256,7 +273,7 @@ server.delete("/chatDetail", async (request: FastifyRequest<{ Querystring: { id:
                 id: id,
             },
         });
-        reply.status(200).send({msg:'删除成功.'});
+        reply.status(200).send({ msg: '删除成功.' });
     } catch (error) {
         console.error(error);
         reply.status(500).send({ error: "An error occurred while retrieving the chatDetail" });
