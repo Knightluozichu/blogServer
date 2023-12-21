@@ -184,47 +184,49 @@ server.get("/chatInfo", async (request: FastifyRequest<{ Querystring: { name: st
 // /chatInfo patch,使chatInfo.value?.id 关联上 chatDetail.chatTitleInfoId
 
 
-// /chatInfo 创建聊天信息 post
+// /chatInfo 创建聊天信息 post, name是搜索，email是自己
 server.post("/chatInfo", async (request: FastifyRequest<{ Body: { name: string, email: string } }>, reply) => {
     const { name, email } = request.body;
-    console.log('-----------');
-    console.log(name);
-    console.log(email);
-    console.log('-----------');
+
     if (!name) {
         reply.status(400).send({ error: "name is required" });
         return;
     }
 
     try {
+        // 根据email查找用户数据对象,然后把chatInfo.id关联到user.chatTitleInfoId
+        const userMy = await prisma.user.findUnique({
+            where: { email: email },
+        });
 
+        // 根据name查找用户数据对象
+        const userSearch = await prisma.user.findFirst({
+            where: { name: name },
+        });
+
+        if(!userSearch || !userMy){
+            reply.status(400).send({ error: "user not found" });
+            return;
+        }
 
         const chatInfo = await prisma.chatTitleInfo.create({
             data: {
                 name: name,
                 chatConnectId: hashCode(uuidv4()),
+                users:{
+                    connect: {id: userMy.id}
+                }
             },
         });
 
-        // 根据email查找用户数据对象,然后把chatInfo.id关联到user.chatTitleInfoId
         await prisma.user.update({
-            where: { email: email },
+            where: { id: userSearch.id },
             data: {
                 chatTitleInfo: {
                     connect: { id: chatInfo.id }
                 }
             },
         });
-
-
-        // 根据name查找用户数据对象
-        await prisma.user.updateMany({
-            where: { name: name },
-            data :{
-                chatTitleInfoId: chatInfo.id
-            },
-        });
-
 
         reply.send(chatInfo);
     } catch (error) {

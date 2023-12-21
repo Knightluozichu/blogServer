@@ -13,8 +13,7 @@ model User {
   name            String
   password        String         @default("")
   isOnline        Boolean        @default(false)
-  chatTitleInfo   ChatTitleInfo? @relation(fields: [chatTitleInfoId], references: [id])
-  chatTitleInfoId String?        @db.ObjectId
+  chatTitleInfo   ChatTitleInfo[]
 }
 
 model ChatDetail {
@@ -39,5 +38,6 @@ model ChatTitleInfo {
   isReadMsg     Boolean?
   isMute        Boolean?
   chatConnectId Int?
-  users          User[]
+  users          User         @relation(fields: [userId], references: [id])
+  userId        String        @db.ObjectId
 }
