@@ -20,6 +20,7 @@
     "chokidar": "^3.5.3",
     "fastify": "^4.24.3",
     "fastify-plugin": "^4.5.1",
+    "fastify-socket.io": "^5.0.0",
     "prisma": "^5.5.2",
     "socket.io": "^4.7.2",
     "uuid": "^9.0.1",

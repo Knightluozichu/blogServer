@@ -4,7 +4,8 @@ import { fastifyStatic, FastifyStaticOptions } from "@fastify/static";
 import fastifyCors from '@fastify/cors';
 import multipart from '@fastify/multipart'
 import { v4 as uuidv4 } from 'uuid';
-import crypto from 'crypto';
+import { Server } from "socket.io";
+import { ChatDetail, PrismaClient } from "@prisma/client";
 
 function hashCode(s: string): number {
     let hash = 0;
@@ -51,14 +52,16 @@ server.register(fastifyCors, {
     origin: "http://192.168.8.9:8080", // 你的前端应用的源
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"], // 允许的 HTTP 方法
 });
+// 注册流上传插件
 server.register(multipart);
+// 注册 fastify-socket.io 插件
+// server.register(fastifySocketIo);
 
 server.get("/", async (request, reply) => {
     // request.log.info("Some info about the request");
     return reply.sendFile("index.html");
 });
 
-import { ChatDetail, PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -204,7 +207,7 @@ server.post("/chatInfo", async (request: FastifyRequest<{ Body: { name: string, 
             where: { name: name },
         });
 
-        if(!userSearch || !userMy){
+        if (!userSearch || !userMy) {
             reply.status(400).send({ error: "user not found" });
             return;
         }
@@ -213,8 +216,8 @@ server.post("/chatInfo", async (request: FastifyRequest<{ Body: { name: string, 
             data: {
                 name: name,
                 chatConnectId: hashCode(uuidv4()),
-                users:{
-                    connect: {id: userMy.id}
+                users: {
+                    connect: { id: userMy.id }
                 }
             },
         });
@@ -291,6 +294,31 @@ const flo: FastifyListenOptions = {
     backlog: 511,
 }
 
+const io = new Server(server.server,{
+    cors:{
+        origin:"http://192.168.8.9:8080"
+    }
+});
+
+// 当有新的客户端连接时
+io.on('connection', (socket) => {
+    console.log('a user connected');
+    console.log(socket.id); // x8WIv7-mJelg7on_ALbx
+
+    // 当收到客户端发送的消息时
+    socket.on('chat message', (msg) => {
+        console.log('message: ' + msg);
+
+        // 将消息广播给所有客户端
+        io.emit('chat message', msg);
+    });
+
+    // 当客户端断开连接时
+    socket.on('disconnect', () => {
+        console.log('user disconnected');
+    });
+});
+
 server.listen(flo, (err, address) => {
     if (err) {
         console.error(err);
@@ -298,4 +326,3 @@ server.listen(flo, (err, address) => {
     }
     server.log.info(`Server listening at ${address}`);
 });
-
