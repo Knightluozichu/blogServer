@@ -8,36 +8,37 @@ generator client {
 }
 
 model User {
-  id              String         @id @default(auto()) @map("_id") @db.ObjectId
-  email           String         @unique
-  name            String
-  password        String         @default("")
-  isOnline        Boolean        @default(false)
-  chatTitleInfo   ChatTitleInfo[]
-}
-
-model ChatDetail {
-  id              String        @id @default(auto()) @map("_id") @db.ObjectId
-  order           Int
-  type            Int
-  content         String
-  time            String
-  icon            String
-  isOwner         Boolean
-  name            String
-  counter         Int
-  ChatTitleInfo   ChatTitleInfo @relation(fields: [chatTitleInfoId], references: [id])
-  chatTitleInfoId String        @db.ObjectId
+  id               String          @id @default(auto()) @map("_id") @db.ObjectId
+  email            String          @unique
+  name             String
+  password         String          @default("")
+  isOnline         Boolean         @default(false)
+  chatTitleInfoIDs String[]        @db.ObjectId
+  chatTitleInfos   ChatTitleInfo[] @relation(fields: [chatTitleInfoIDs], references: [id])
 }
 
 model ChatTitleInfo {
   id            String       @id @default(auto()) @map("_id") @db.ObjectId
   name          String
-  contents      ChatDetail[]
   icon          String?
   isReadMsg     Boolean?
   isMute        Boolean?
-  chatConnectId Int?
-  users          User         @relation(fields: [userId], references: [id])
-  userId        String        @db.ObjectId
+  chatConnectId Int          @unique
+  userIDs       String[]     @db.ObjectId
+  users         User[]       @relation(fields: [userIDs], references: [id])
+  chatDetails   ChatDetail[]
+}
+
+model ChatDetail {
+  id                String        @id @default(auto()) @map("_id") @db.ObjectId
+  order             Int
+  type              Int
+  content           String
+  time              String
+  icon              String 
+  isOwner           Boolean
+  name              String
+  counter           Int
+  chatInfoConnectId Int
+  ChatTitleInfo     ChatTitleInfo @relation(fields: [chatInfoConnectId], references: [chatConnectId])
 }

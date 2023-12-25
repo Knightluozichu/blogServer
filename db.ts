@@ -15,46 +15,11 @@ const prisma = new PrismaClient()
 
 async function main() {
 
-  // const chatTitleInfo = await prisma.chatTitleInfo.create({
-  //   data: {
-  //     name: 'test',
-  //     chatConnectId: hashCode(uuidv4()),
-  //   },
-  // })
-
-  // const u1 = await prisma.user.create({
-  //   data: {
-  //     name: 'admin',
-  //     email: '13928245451@163.com',
-  //     password: '123',
-  //     chatTitleInfo: {
-  //       connect: {id: chatTitleInfo.id}
-  //     }
-  //   },
-  // })
-
-  // const u2 = await prisma.user.create({
-  //   data: {
-  //     name: 'test',
-  //     email: 'ww@gmail.com',
-  //     password: '123',
-  //     chatTitleInfo: {
-  //       connect: {id: chatTitleInfo.id}
-  //     }
-  //   },
-  // })
-
-
-
-  // await prisma.user.updateMany({
-  //   data: {
-  //     isOnline: false, // 或者你想设置的默认值
-  //   },
-  // })
-
 
   // 删除 ChatDetail 表中的所有记录
   await prisma.chatDetail.deleteMany()
+
+  // await prisma.userChatInfo.deleteMany()
 
   // 删除 ChatTitleInfo 表中的所有记录
   await prisma.chatTitleInfo.deleteMany()
@@ -62,6 +27,18 @@ async function main() {
   // 删除 User 表中的所有记录
   await prisma.user.deleteMany()
 
+  // 查询名字w1的用户信息
+  // const w1User = await prisma.user.findFirst({
+  //   where: {
+  //     name: 'w1',
+  //   },
+  // })
+  // if(w1User == null) {
+  //   return;
+  // }
+
+
+    
   const allUsers = await prisma.user.findMany()
   console.log(allUsers)
 }

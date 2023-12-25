@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Server } from "socket.io";
 import { ChatDetail, PrismaClient } from "@prisma/client";
 
+
 function hashCode(s: string): number {
     let hash = 0;
     for (let i = 0; i < s.length; i++) {
@@ -42,6 +43,15 @@ if (!process.env.NODE_ENV) {
 const server = fastify({
     logger: true,
 });
+
+const io = new Server(server.server, {
+    cors: {
+        origin: "http://192.168.8.9:8080"
+    }
+});
+
+// 存储会话 ID 和 Socket.IO 连接的映射
+const sessions = new Map();
 
 const staticOpts: FastifyStaticOptions = {
     root: path.join(__dirname, "dist"),
@@ -93,7 +103,46 @@ server.get("/user", async (request: FastifyRequest<{ Querystring: { email: strin
         await prisma.user.update({ where: { id }, data: { isOnline: true } });
 
         server.log.info(`User ${user.name} logged in`);
-        reply.send(user);
+        // 生成一个新的会话 ID
+        const sessionId = uuidv4();
+
+        // 当有新的客户端连接时
+        io.on('connection', (socket) => {
+            console.log('a user connected');
+            console.log(socket.id); // x8WIv7-mJelg7on_ALbx
+            socket.on('session', (clientSessionId) => {
+                if (clientSessionId === sessionId) {
+                    sessions.set(sessionId, socket);
+                }
+            });
+
+            socket.on('check.ChatTitleInfos', ({ userIds, sessionId }: { userIds: string[]; sessionId: string; }) => {
+                // 在这里处理 userIds 和 sessionId
+                // 例如，你可以使用这些数据来检查 ChatTitleInfos
+                if(userIds.length == 0) {
+                    return;
+                }
+                for (let index = 0; index < userIds.length; index++) {
+                    const element = userIds[index];
+                    socket.emit('check.ChatTitleInfos', { msg: `傻瓜：${element}` });
+                }
+            });
+
+            // 当收到客户端发送的消息时
+            socket.on('chat message', (msg) => {
+                console.log('message: ' + msg);
+
+                // 将消息广播给所有客户端
+                socket.emit('chat message', msg);
+            });
+
+            // 当客户端断开连接时
+            socket.on('disconnect', () => {
+                console.log('user disconnected');
+            });
+        });
+        // 将会话 ID 发送给客户端
+        reply.send({ sessionId, user });
     } catch (error) {
         console.error(error);
         reply.status(500).send({ error: "An error occurred while retrieving the user" });
@@ -170,14 +219,28 @@ server.get("/chatInfo", async (request: FastifyRequest<{ Querystring: { name: st
         return;
     }
     try {
-        const chatInfos = await prisma.chatTitleInfo.findMany({
+
+        // 根据name查找用户数据对象
+        const userSearch = await prisma.user.findFirst({
+            where: { name: name },
+        });
+
+        //根据用户的chatTitleInfos查找chatTitleInfo
+        if (!userSearch || !userSearch.id) {
+            reply.status(400).send({ error: "userSearch not found" });
+            return;
+        }
+
+        const chatTitleInfos = await prisma.chatTitleInfo.findMany({
             where: {
-                name: name,
-                chatConnectId: hashCode(uuidv4()),
+                userIDs: {
+                    has: userSearch.id,
+                },
             },
         });
-        console.log(JSON.stringify(chatInfos));
-        reply.send(chatInfos);
+
+        console.log(JSON.stringify(chatTitleInfos));
+        reply.send(chatTitleInfos);
     } catch (error) {
         console.error(error);
         reply.status(500).send({ error: "An error occurred while retrieving the chatInfo" });
@@ -192,7 +255,7 @@ server.post("/chatInfo", async (request: FastifyRequest<{ Body: { name: string, 
     const { name, email } = request.body;
 
     if (!name) {
-        reply.status(400).send({ error: "name is required" });
+        reply.status(400).send({ error: "name is required" + name });
         return;
     }
 
@@ -207,31 +270,56 @@ server.post("/chatInfo", async (request: FastifyRequest<{ Body: { name: string, 
             where: { name: name },
         });
 
-        if (!userSearch || !userMy) {
-            reply.status(400).send({ error: "user not found" });
+        if (!userSearch || !userSearch.id) {
+            reply.status(400).send({ error: "userSearch not found" });
             return;
         }
 
-        const chatInfo = await prisma.chatTitleInfo.create({
-            data: {
-                name: name,
-                chatConnectId: hashCode(uuidv4()),
-                users: {
-                    connect: { id: userMy.id }
-                }
+        if (!userMy || !userMy.id) {
+            reply.status(400).send({ error: "userMy not found" });
+            return;
+        }
+
+        console.log(userMy.id, userSearch.id, name, email);
+
+        // 查找chatTitleInfo数据库里是userIds否有userMy.id和userSearch.id的对象
+
+        let chatTitleInfos = await prisma.chatTitleInfo.findFirst({
+            where: {
+                userIDs: {
+                    hasEvery: [userMy.id, userSearch.id],
+                },
             },
         });
 
-        await prisma.user.update({
-            where: { id: userSearch.id },
-            data: {
-                chatTitleInfo: {
-                    connect: { id: chatInfo.id }
-                }
-            },
-        });
+        if (!chatTitleInfos) {
+            chatTitleInfos = await prisma.chatTitleInfo.create({
+                data: {
+                    name: name,
+                    userIDs: [userMy.id, userSearch.id],
+                    chatConnectId: hashCode(uuidv4()),
+                },
+            });
 
-        reply.send(chatInfo);
+            // 更新user chatTitleInfos
+            await prisma.user.updateMany({
+                where: {
+                    id: {
+                        in: [userMy.id, userSearch.id],
+                    },
+                },
+                data: {
+                    chatTitleInfoIDs: {
+                        push: chatTitleInfos.id,
+                    },
+                },
+            });
+
+            reply.send(chatTitleInfos);
+
+        }
+
+        reply.status(400).send({ error: "chatTitleInfos 已经存在了." });
     } catch (error) {
         console.error(error);
         reply.status(500).send({ error: "An error occurred while retrieving the chatInfo" });
@@ -248,6 +336,15 @@ server.post("/chatDetail", async (request: FastifyRequest<{
     const { order, type, content, time, icon, isOwner, name, counter, chatTitleInfoId } = request.body;
 
     try {
+        const chatTitleInfo = await prisma.chatTitleInfo.findUnique({
+            where: {
+                id: chatTitleInfoId,
+            },
+        });
+        if(!chatTitleInfo) {
+            reply.status(400).send({ error: "chatTitleInfoId is undefine." });
+            return;
+        }
         const chatDetail = await prisma.chatDetail.create({
             data: {
                 order: order,
@@ -258,7 +355,7 @@ server.post("/chatDetail", async (request: FastifyRequest<{
                 isOwner: isOwner,
                 name: name,
                 counter: counter,
-                chatTitleInfoId: chatTitleInfoId,
+                chatInfoConnectId:chatTitleInfo?.chatConnectId,
             },
         });
         reply.send(chatDetail);
@@ -287,37 +384,12 @@ server.delete("/chatDetail", async (request: FastifyRequest<{ Querystring: { id:
 
 
 
-
 const flo: FastifyListenOptions = {
     port: 3000,
     host: "0.0.0.0",
     backlog: 511,
 }
 
-const io = new Server(server.server,{
-    cors:{
-        origin:"http://192.168.8.9:8080"
-    }
-});
-
-// 当有新的客户端连接时
-io.on('connection', (socket) => {
-    console.log('a user connected');
-    console.log(socket.id); // x8WIv7-mJelg7on_ALbx
-
-    // 当收到客户端发送的消息时
-    socket.on('chat message', (msg) => {
-        console.log('message: ' + msg);
-
-        // 将消息广播给所有客户端
-        io.emit('chat message', msg);
-    });
-
-    // 当客户端断开连接时
-    socket.on('disconnect', () => {
-        console.log('user disconnected');
-    });
-});
 
 server.listen(flo, (err, address) => {
     if (err) {
