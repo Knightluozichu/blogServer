@@ -6,7 +6,9 @@ import multipart from '@fastify/multipart'
 import { v4 as uuidv4 } from 'uuid';
 import { Server } from "socket.io";
 import { ChatDetail, PrismaClient } from "@prisma/client";
-
+// import token from "./jwt";
+import fastifyJwt from '@fastify/jwt';
+import fastifyAuth from '@fastify/auth';
 
 function hashCode(s: string): number {
     let hash = 0;
@@ -64,19 +66,49 @@ server.register(fastifyCors, {
 });
 // 注册流上传插件
 server.register(multipart);
+server.register(fastifyJwt, {
+    secret: 'supersecret',
+    sign: {
+        algorithm: 'HS256',
+        expiresIn: '7d'
+    },
+    verify: {
+        maxAge: '7d',
+        algorithms: ['HS256'],
+    },
+    decode: {
+        complete: true,
+    },
+});
+server.register(fastifyAuth);
+
+server.addHook("onRequest", async (request, reply) => {
+    // server.log.info('--------------------------------------');
+    // server.log.info(request.url);
+    // server.log.info('--------------------------------------');
+    const isFilter = request.url.includes ('/user') || request.url.includes ('/register') ;
+    if (!isFilter) {
+        try {
+            await request.jwtVerify()
+        } catch (err) {
+            reply.send(err)
+        }
+    }
+})
+
 // 注册 fastify-socket.io 插件
 // server.register(fastifySocketIo);
 
-server.get("/", async (request, reply) => {
-    // request.log.info("Some info about the request");
-    return reply.sendFile("index.html");
-});
+// server.get("/", { preValidation: [(request, reply, done) => done()] }, async (request, reply) => {
+//     // request.log.info("Some info about the request");
+//     return reply.sendFile("index.html");
+// });
 
 
 const prisma = new PrismaClient();
 
 //登陆 查询用户
-server.get("/user", async (request: FastifyRequest<{ Querystring: { email: string, password: string } }>, reply) => {
+server.get<{ Querystring: { email: string, password: string } }>("/user",async (request: FastifyRequest<{ Querystring: { email: string, password: string } }>, reply) => {
     const { email, password } = request.query;
 
     if (!email) {
@@ -119,7 +151,7 @@ server.get("/user", async (request: FastifyRequest<{ Querystring: { email: strin
             socket.on('check.ChatTitleInfos', ({ userIds, sessionId }: { userIds: string[]; sessionId: string; }) => {
                 // 在这里处理 userIds 和 sessionId
                 // 例如，你可以使用这些数据来检查 ChatTitleInfos
-                if(userIds.length == 0) {
+                if (userIds.length == 0) {
                     return;
                 }
                 for (let index = 0; index < userIds.length; index++) {
@@ -141,8 +173,10 @@ server.get("/user", async (request: FastifyRequest<{ Querystring: { email: strin
                 console.log('user disconnected');
             });
         });
+        const accessToken = server.jwt.sign(user);
+        // const accessToken = token.create(user);
         // 将会话 ID 发送给客户端
-        reply.send({ sessionId, user });
+        reply.send({ sessionId, user, accessToken });
     } catch (error) {
         console.error(error);
         reply.status(500).send({ error: "An error occurred while retrieving the user" });
@@ -156,7 +190,20 @@ interface RegisterRequestBody {
     // 其他字段...
 }
 //注册 查询email是否存在，如果存在则返回错误，如果不存在则创建用户
-server.post("/register", async (request: FastifyRequest<{ Body: RegisterRequestBody }>, reply) => {
+server.post<{ Body: RegisterRequestBody }>("/register", {
+    preHandler: async (request, reply, done) => {
+        if (!request.headers.authorization || request.headers.authorization === 'Bearer null') {
+            done();
+        } else {
+            try {
+                await request.jwtVerify();
+                done();
+            } catch (err: any) {
+                done(err);
+            }
+        }
+    }
+}, async (request: FastifyRequest<{ Body: RegisterRequestBody }>, reply) => {
     const { email, password, name } = request.body;
     if (!email) {
         reply.status(400).send({ error: "Email is required" });
@@ -341,7 +388,7 @@ server.post("/chatDetail", async (request: FastifyRequest<{
                 id: chatTitleInfoId,
             },
         });
-        if(!chatTitleInfo) {
+        if (!chatTitleInfo) {
             reply.status(400).send({ error: "chatTitleInfoId is undefine." });
             return;
         }
@@ -355,7 +402,7 @@ server.post("/chatDetail", async (request: FastifyRequest<{
                 isOwner: isOwner,
                 name: name,
                 counter: counter,
-                chatInfoConnectId:chatTitleInfo?.chatConnectId,
+                chatInfoConnectId: chatTitleInfo?.chatConnectId,
             },
         });
         reply.send(chatDetail);
